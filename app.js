@@ -1,49 +1,77 @@
 
-<h3>Hello {{user.name}} !!!</h3>
+const express = require('express');
+const path = require('path');
+const bodyParser = require('body-parser');
+const exphbs = require('express-handlebars');
+const expressValidator = require('express-validator');
+const flash = require('connect-flash');
+const session = require('express-session');
+const passport = require('passport');
+const mongoose = require('mongoose');
 
-<br>
-<br>
+const app = express();
 
-<table class="table table-bordered">
-  <thead class="table-success">
-    <tr>
-      <th scope="col">ID</th>
-      <th scope="col">Customer Name</th>
-      <th scope="col">Customer Contact</th>
-      <th scope="col">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{#each complaints}}
-        <tr>
-            <td>{{_id}}</td>          
-            <td>{{name}}</td>
-            <td>{{contact}}</td>
-            <td>{{desc}}</td>
-        </tr>
-    {{/each}}
-    
-  </tbody>
-</table>
+const port = process.env.PORT || 3000;
 
-<div class="container mt-5 border p-5" style="width:70%">
-    <h2> Assign the Complaint to Engineer</h2>
-    <br>
-    <form method="post" action="/assign">
-    <div class="form-group">
-        <label>Complaint Number</label>
-        <input class="form-control" type="text" name="complaintID" placeholder="Complaint Number">
-    </div>
-    <div class="form-group">
-        <label>Engineer</label>
-        <select name="engineerName" id="engineerName" class="form-control">
-            {{#each engineer}}
-                <option value={{username}}> {{username}} </option>
-            {{/each}}
-        </select>
-    </div>
-    <div class="form-group">
-        <button type="submit" class="btn btn-success btn-block">Assign to Engineer</button>
-    </div>
-    </form>
-</div>
+const index = require('./routes/index');
+
+// View Engine
+app.engine('handlebars', exphbs({defaultLayout:'main'}));
+app.set('view engine', 'handlebars');
+
+// Static Folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Body Parser Middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// Express Session
+app.use(session({
+    secret: 'secret',
+    saveUninitialized: true,
+    resave: true,
+    maxAge: null,
+    cookie : { httpOnly: true, maxAge: 2419200000 } // configure when sessions expires
+}));
+
+
+// Init passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Express messages
+app.use(flash());
+app.use((req, res, next) => {
+  res.locals.success_msg = req.flash('success_msg');
+  res.locals.error_msg = req.flash('error_msg');
+  res.locals.error = req.flash('error');
+  res.locals.user = req.user || null;
+  next();
+});
+
+// Express Validator
+app.use(expressValidator({
+  errorFormatter: (param, msg, value) => {
+      let namespace = param.split('.')
+      , root    = namespace.shift()
+      , formParam = root;
+
+    while(namespace.length) {
+      formParam += '[' + namespace.shift() + ']';
+    }
+    return {
+      param : formParam,
+      msg   : msg,
+      value : value
+    };
+  }
+}));
+
+app.use('/', index);
+
+
+// Start Server
+app.listen(port, () => {
+  console.log('Server started on port '+port);
+});
